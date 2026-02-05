@@ -1,4 +1,5 @@
-use std::{fmt::Debug, mem::MaybeUninit, process::exit};
+use std::{fmt::Debug, mem::MaybeUninit, os::raw};
+use tokio::{runtime::Handle, sync::mpsc::Sender};
 
 use ashpd::desktop::{
     screencast::{CursorMode, Screencast, SourceType},
@@ -9,9 +10,9 @@ use pipewire::{
     main_loop::MainLoop,
     properties::Properties,
     spa::{
-        param::ParamType, pod::{self, Pod, builder}, sys::{
+        param::ParamType, pod::{Pod, builder}, sys::{
             SPA_CHOICE_Enum, SPA_CHOICE_Range, SPA_FORMAT_VIDEO_format, SPA_FORMAT_VIDEO_framerate, SPA_FORMAT_VIDEO_size, SPA_FORMAT_mediaSubtype, SPA_FORMAT_mediaType, SPA_MEDIA_SUBTYPE_raw, SPA_MEDIA_TYPE_video, SPA_PARAM_EnumFormat, SPA_TYPE_OBJECT_Format, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_I420, SPA_VIDEO_FORMAT_RGB, SPA_VIDEO_FORMAT_RGBA, SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_YUY2, spa_format_parse, spa_format_video_raw_parse, spa_pod_frame, spa_video_info
-        }, utils::{ChoiceFlags, Direction, Fraction, Id, Rectangle}
+        }, utils::{Direction, Fraction, Id, Rectangle}
     },
     stream::{Stream, StreamFlags},
 };
@@ -53,6 +54,24 @@ impl RecorderWindows {
     }
 }
 
+pub struct RawFrame {
+    pub data: Vec<u8>,
+    pub format: u32,
+    pub width: u32,
+    pub height: u32
+}
+
+impl RawFrame {
+    fn new(data: Vec<u8>, format: u32, width: u32, height: u32) -> Self {
+        Self {
+            data,
+            format,
+            width,
+            height,
+        }
+    }
+}
+
 pub struct RecorderLinux<'a> {
     proxy: Screencast<'a>
 }
@@ -64,7 +83,7 @@ impl<'a> RecorderLinux<'a> {
         })
     }
 
-    pub async fn start_recording(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start_recording(&self, sender: Sender<RawFrame>) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         // Linux-specific screen recording implementation
         println!("Starting recording...");
 
@@ -163,16 +182,28 @@ impl<'a> RecorderLinux<'a> {
                 );
             }
             })
-            .process(move |stream, data| {
+            .process(move |stream, data_format| {
+                // println!("{:?}", stream.properties());
                 if let Some(mut buffer) = stream.dequeue_buffer() {
                     // Process buffer data
-                    println!("Processing buffer frame");
+                    // println!("Processing buffer frame");
                     let datas = buffer.datas_mut();
                     if let Some(data) = datas.first_mut() {
-                        let internal_data = data.data();
-                        let a = internal_data.unwrap();
-                        println!("{}", a.len());
+                        if let Some(internal_data) = data.data() {
+                            let expected = 2560 * 1440 * 4;
+                            println!("Frame size: {} (expected: {})", internal_data.len(), expected);
 
+                            let format = data_format.format.unwrap();
+                            unsafe {
+                                let raw_frame = RawFrame::new(
+                                    internal_data.to_vec(),
+                                    format.info.raw.format,
+                                    format.info.raw.size.width, 
+                                    format.info.raw.size.height,
+                                );
+                                sender.try_send(raw_frame).unwrap();
+                            }                 
+                        }
                         // println!("Got frame data: {:?}", data.data());
                         mainloop_closure.quit();
                     }
@@ -218,7 +249,7 @@ impl<'a> RecorderLinux<'a> {
             // Video framerate (with choice range)
             pod_builder.add_prop(SPA_FORMAT_VIDEO_framerate, 0)?;
             pod_builder.push_choice(&mut choice_frame, SPA_CHOICE_Range, 0)?;
-            pod_builder.add_fraction(Fraction { num: 25, denom: 1 })?; // default
+            pod_builder.add_fraction(Fraction { num: 30, denom: 1 })?; // default
             pod_builder.add_fraction(Fraction { num: 0, denom: 1 })?; // min
             pod_builder.add_fraction(Fraction { num: 1000, denom: 1 })?; // max
             pod_builder.pop(choice_frame.assume_init_mut());
