@@ -6,7 +6,9 @@ edition = "2024"
 [dependencies]
 ashpd = { version = "0.12.1", features = ["pipewire", "tokio", "tracing", "wayland"] }
 ffmpeg-next = "8.0.0"
+gtk4 = "0.10.3"
 libc = "0.2.180"
+libp2p = { version = "0.56.0", features = ["full"] }
 pipewire = { version = "0.8.0", features = ["v0_3_77"] }
 pipewire-sys = "0.8.0"
 tokio = { version = "1.49.0", features = ["full"] }

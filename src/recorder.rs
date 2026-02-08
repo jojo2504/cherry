@@ -202,7 +202,7 @@ impl<'a> RecorderLinux<'a> {
                                     format.info.raw.size.height,
                                 );
                                 sender.try_send(raw_frame).unwrap();
-                            }                 
+                            }
                         }
                         // println!("Got frame data: {:?}", data.data());
                         mainloop_closure.quit();
@@ -229,13 +229,12 @@ impl<'a> RecorderLinux<'a> {
             // Video format (with choice enum)
             pod_builder.add_prop(SPA_FORMAT_VIDEO_format, 0)?;
             pod_builder.push_choice(&mut choice_frame, SPA_CHOICE_Enum, 0)?;
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGB))?; // default
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGB))?;
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGBA))?;
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGBx))?;
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_BGRx))?;
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_YUY2))?;
             pod_builder.add_id(Id(SPA_VIDEO_FORMAT_I420))?;
+            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_YUY2))?;
+            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGBx))?;
+            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_BGRx))?; // default, native wayland
+            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGBA))?;
+            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGB))?; 
             pod_builder.pop(choice_frame.assume_init_mut());
             
             // Video size (with choice range)
