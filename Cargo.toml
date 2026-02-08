@@ -4,11 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.101"
 ashpd = { version = "0.12.1", features = ["pipewire", "tokio", "tracing", "wayland"] }
 ffmpeg-next = "8.0.0"
+futures = "0.3.31"
 gtk4 = "0.10.3"
 libc = "0.2.180"
 libp2p = { version = "0.56.0", features = ["full"] }
+libp2p-stream = "0.4.0-alpha"
 pipewire = { version = "0.8.0", features = ["v0_3_77"] }
 pipewire-sys = "0.8.0"
 tokio = { version = "1.49.0", features = ["full"] }
+tracing = { version = "0.1.44" }
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "tracing"] }
