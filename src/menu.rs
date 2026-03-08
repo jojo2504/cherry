@@ -1,8 +1,8 @@
 use gtk4::prelude::*;
 use gtk4::{
     Application, ApplicationWindow, Box as GtkBox, Button, ComboBoxText, Label, 
-    Orientation, ScrolledWindow, Switch, Scale, ListBox, ListBoxRow, 
-    Grid, SpinButton, Adjustment, Entry,
+    Orientation, ScrolledWindow, Switch, Scale, 
+    Grid, SpinButton, Adjustment,
 };
 use gtk4::glib;
 use std::cell::RefCell;
@@ -668,7 +668,7 @@ fn create_peers_section(state: Rc<RefCell<AppState>>) -> GtkBox {
     section
 }
 
-fn create_peer_item(peer: Peer, state: Rc<RefCell<AppState>>) -> GtkBox {
+fn create_peer_item(peer: Peer, _state: Rc<RefCell<AppState>>) -> GtkBox {
     let container = GtkBox::new(Orientation::Horizontal, 12);
     container.add_css_class("peer-row");
 

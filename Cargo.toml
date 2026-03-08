@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.101"
 ashpd = { version = "0.12.1", features = ["pipewire", "tokio", "tracing", "wayland"] }
+async-trait = "0.1.89"
 ffmpeg-next = "8.0.0"
 futures = "0.3.31"
 gtk4 = "0.10.3"
@@ -17,3 +18,4 @@ pipewire-sys = "0.8.0"
 tokio = { version = "1.49.0", features = ["full"] }
 tracing = { version = "0.1.44" }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "tracing"] }
+uuid = "1.22.0"

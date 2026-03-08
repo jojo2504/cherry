@@ -1,5 +1,5 @@
-use std::{fmt::Debug, mem::MaybeUninit, os::raw};
-use tokio::{runtime::Handle, sync::mpsc::Sender};
+use std::{fmt::Debug, mem::MaybeUninit};
+use tokio::sync::mpsc::Sender;
 
 use ashpd::desktop::{
     screencast::{CursorMode, Screencast, SourceType},
@@ -16,12 +16,6 @@ use pipewire::{
     },
     stream::{Stream, StreamFlags},
 };
-
-#[cfg(target_os = "windows")]
-pub type ScreenRecorder<'a> = RecorderWindows<'a>;
-
-#[cfg(target_os = "linux")]
-pub type ScreenRecorder<'a> = RecorderLinux<'a>; 
 
 struct Data {
     format: Option<spa_video_info>
@@ -83,7 +77,7 @@ impl<'a> RecorderLinux<'a> {
         })
     }
 
-    pub async fn start_recording(&self, sender: Sender<RawFrame>) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    pub async fn start_recording(&self, sender: Sender<RawFrame>) -> Result<(), anyhow::Error> {
         // Linux-specific screen recording implementation
         println!("Starting recording...");
 
@@ -106,7 +100,7 @@ impl<'a> RecorderLinux<'a> {
         println!("Stream obtained: node_id = {}", stream.pipe_wire_node_id());
 
         // pipewire handling
-        let mut buffer: Vec<u8> = vec![];
+        let mut buffer: Vec<u8> = Vec::with_capacity(4096);
         let mut pod_builder = builder::Builder::new(&mut buffer);
         
         let mut props = Properties::new();
@@ -127,10 +121,10 @@ impl<'a> RecorderLinux<'a> {
         };
 
         let _listener = pw_stream.add_local_listener_with_user_data(data)
-            .state_changed(|stream, data, old, new| {
+            .state_changed(|_stream, _data, old, new| {
                 println!("Stream state changed: {:?} -> {:?}", old, new);
             })
-            .param_changed(move |stream, data, id, param| {
+            .param_changed(move |_stream, data: &mut Data, id, param| {
                 if param.is_none() || id != ParamType::Format.as_raw() {
                     return;
                 }
@@ -193,19 +187,19 @@ impl<'a> RecorderLinux<'a> {
                             let expected = 2560 * 1440 * 4;
                             println!("Frame size: {} (expected: {})", internal_data.len(), expected);
 
-                            let format = data_format.format.unwrap();
-                            unsafe {
-                                let raw_frame = RawFrame::new(
-                                    internal_data.to_vec(),
-                                    format.info.raw.format,
-                                    format.info.raw.size.width, 
-                                    format.info.raw.size.height,
-                                );
-                                sender.try_send(raw_frame).unwrap();
+                            if let Some(format) = data_format.format {
+                                unsafe {
+                                    let raw_frame = RawFrame::new(
+                                        internal_data.to_vec(),
+                                        format.info.raw.format,
+                                        format.info.raw.size.width,
+                                        format.info.raw.size.height,
+                                    );
+                                    let _ = sender.try_send(raw_frame);
+                                }
                             }
                         }
                         // println!("Got frame data: {:?}", data.data());
-                        mainloop_closure.quit();
                     }
                 }
             })

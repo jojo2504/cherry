@@ -2,46 +2,41 @@ pub mod recorder;
 pub mod media;
 pub mod menu;
 pub mod network;
+pub mod service;
+pub mod app;
 
-use std::sync::Arc;
-
+use anyhow::Ok;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-
-use crate::{media::VideoEncoder, recorder::{RawFrame, ScreenRecorder}};
+use std::{sync::Arc, time::Duration};
+use crate::{app::App, media::VideoEncoder, recorder::RawFrame, service::{Client, Server}};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-    // crate::menu::main().await;
-    
-    crate::network::main().await;
-    
+async fn main() -> anyhow::Result<()> {
     let (stream_sender, stream_receiver): (Sender<RawFrame>, Receiver<RawFrame>) = mpsc::channel::<RawFrame>(100);
-    // let recorder = Arc::new(ScreenRecorder::new().await?);
-    // let media = Arc::new(VideoEncoder::new(2560, 1440, 8).unwrap());
-    
-    // let mut handles = vec![];
+    let (encoder_sender, encoder_receiver): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel::<Vec<u8>>(100);
+    let app = Arc::new(App::new(stream_sender, encoder_receiver).await?);
 
-    // handles.push(tokio::spawn(async move {
-    //     crate::network::main().await
-    // }));
-    
-    // handles.push(tokio::spawn(async move {
-    //     // crate::menu::main().await
-    // }));
+    tokio::spawn({
+        let app = Arc::clone(&app);
+        async move { app.discover_peers().await }
+    });
 
-    // let task_recorder = recorder.clone();
-    // handles.push(tokio::spawn(async move {
-    //     task_recorder.start_recording(stream_sender).await
-    // }));
+    tokio::spawn(async move {
+        let mut video_encoder = VideoEncoder::new(2560, 1440, 8).await.unwrap();
+        video_encoder.encode_stream(stream_receiver, encoder_sender).await
+    });
 
-    // let task_media = media.clone();
-    // handles.push(tokio::spawn(async move {
-    //     task_media.encode_stream(stream_receiver).await
-    // }));    
+    std::thread::sleep(Duration::from_secs(2));
 
-    // for handle in handles {
-    //     handle.await??;
-    // }
+    // start recording and streaming to another instance
+    app.start_recording().await?;
+    app.start_streaming().await?;
+
+    while let Some(raw) = app.encoder_receiver.lock().await.recv().await {
+        println!("{:?}", raw);
+    }
+
+    println!("{:?}", app.discovered_peers);
 
     Ok(())
 }
