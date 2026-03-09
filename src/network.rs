@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
+use libp2p::mdns;
 use libp2p::{PeerId, StreamProtocol, swarm::NetworkBehaviour};
 use libp2p_stream::Control;
-use libp2p::mdns;
 
 const ECHO_PROTOCOL: StreamProtocol = StreamProtocol::new("/streaming");
 
 struct StreamMetadata {
     name: String,
-    peer_id: PeerId
+    peer_id: PeerId,
 }
 
 struct Streamer {
@@ -26,8 +26,6 @@ pub struct MyBehaviour {
 
 impl MyBehaviour {
     pub fn new(mdns: mdns::tokio::Behaviour) -> Self {
-        Self {
-            mdns,
-        }
+        Self { mdns }
     }
 }

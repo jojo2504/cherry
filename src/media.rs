@@ -24,22 +24,21 @@ unsafe impl Send for VideoEncoder {}
 pub fn parse_format(format: u32) -> format::Pixel {
     use format::Pixel;
     match format {
-        2  => Pixel::YUV420P, // I420
-        4  => Pixel::YUYV422, // YUY2
-        7  => Pixel::RGB32,   // RGBx
-        8  => Pixel::BGR32,   // BGRx (Wayland native)
-        11 => Pixel::RGBA,    // RGBA
-        15 => Pixel::RGB24,   // RGB
-        _  => unreachable!(),
+        2 => Pixel::YUV420P, // I420
+        4 => Pixel::YUYV422, // YUY2
+        7 => Pixel::RGB32,   // RGBx
+        8 => Pixel::BGR32,   // BGRx (Wayland native)
+        11 => Pixel::RGBA,   // RGBA
+        15 => Pixel::RGB24,  // RGB
+        _ => unreachable!(),
     }
 }
 
 impl VideoEncoder {
-    pub async fn new(width: u32, height: u32, pixel_format: u32) -> Result<Self, ffmpeg::Error> {          
+    pub async fn new(width: u32, height: u32, pixel_format: u32) -> Result<Self, ffmpeg::Error> {
         // Find the codec first, then allocate the context *with* that codec so
         // libx264's private data (CRF, VBV, etc.) is properly initialized.
-        let codec = encoder::find(codec::Id::H264)
-            .ok_or(ffmpeg::Error::EncoderNotFound)?;
+        let codec = encoder::find(codec::Id::H264).ok_or(ffmpeg::Error::EncoderNotFound)?;
 
         let context = codec::context::Context::new_with_codec(codec);
         let mut video = context.encoder().video()?;
@@ -47,10 +46,10 @@ impl VideoEncoder {
         video.set_width(width);
         video.set_height(height);
         video.set_format(format::Pixel::YUV420P);
-        video.set_bit_rate(2_000_000);  // 2 Mbps ABR — satisfies x264 "no broken defaults"
-        video.set_max_b_frames(0);      // NO B-frames
-        video.set_gop(60);              // keyframe every 1s @60fps
-        video.set_time_base((1,60));
+        video.set_bit_rate(2_000_000); // 2 Mbps ABR — satisfies x264 "no broken defaults"
+        video.set_max_b_frames(0); // NO B-frames
+        video.set_gop(60); // keyframe every 1s @60fps
+        video.set_time_base((1, 60));
 
         let codec = encoder::find(codec::Id::H264)
             .ok_or(ffmpeg::Error::EncoderNotFound)?
@@ -62,8 +61,13 @@ impl VideoEncoder {
         let video: encoder::Video = video.open_as_with(codec, opts)?;
 
         println!("a");
-        
-        eprintln!("[encoder] creating scaler: {:?} {}x{} -> YUV420P", parse_format(pixel_format), width, height);
+
+        eprintln!(
+            "[encoder] creating scaler: {:?} {}x{} -> YUV420P",
+            parse_format(pixel_format),
+            width,
+            height
+        );
         let scaling_context = ScalingContext::get(
             parse_format(pixel_format),
             width,
@@ -86,31 +90,34 @@ impl VideoEncoder {
     }
 
     pub async fn encode_stream(
-        &mut self, 
+        &mut self,
         mut rx: Receiver<RawFrame>,
-        encoder_sender: Sender<Vec<u8>>) 
-    -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+        encoder_sender: Sender<Vec<u8>>,
+    ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         while let Some(raw) = rx.recv().await {
-            eprintln!("[enc] got frame {}x{} fmt={}", raw.width, raw.height, raw.format);
-
-            let mut src = frame::Video::new(
-                parse_format(raw.format),
-                raw.width,
-                raw.height,
+            eprintln!(
+                "[enc] got frame {}x{} fmt={}",
+                raw.width, raw.height, raw.format
             );
-            eprintln!("[enc] src frame created, planes={} stride={}", src.planes(), src.stride(0));
+
+            let mut src = frame::Video::new(parse_format(raw.format), raw.width, raw.height);
+            eprintln!(
+                "[enc] src frame created, planes={} stride={}",
+                src.planes(),
+                src.stride(0)
+            );
 
             let src_len = src.stride(0) * raw.height as usize;
-            eprintln!("[enc] src buf len={} raw.data len={}", src_len, raw.data.len());
+            eprintln!(
+                "[enc] src buf len={} raw.data len={}",
+                src_len,
+                raw.data.len()
+            );
             src.data_mut(0)[..raw.data.len()].copy_from_slice(&raw.data);
             eprintln!("[enc] copy done");
             src.set_pts(Some(self.frame_count as i64));
 
-            let mut dst = frame::Video::new(
-                format::Pixel::YUV420P,
-                raw.width,
-                raw.height,
-            );
+            let mut dst = frame::Video::new(format::Pixel::YUV420P, raw.width, raw.height);
             eprintln!("[enc] dst frame created");
 
             self.scaler.run(&src, &mut dst)?;

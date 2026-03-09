@@ -2,45 +2,49 @@ use std::{fmt::Debug, mem::MaybeUninit};
 use tokio::sync::mpsc::Sender;
 
 use ashpd::desktop::{
-    screencast::{CursorMode, Screencast, SourceType},
     PersistMode,
+    screencast::{CursorMode, Screencast, SourceType},
 };
 use pipewire::{
     context::Context,
     main_loop::MainLoop,
     properties::Properties,
     spa::{
-        param::ParamType, pod::{Pod, builder}, sys::{
-            SPA_CHOICE_Enum, SPA_CHOICE_Range, SPA_FORMAT_VIDEO_format, SPA_FORMAT_VIDEO_framerate, SPA_FORMAT_VIDEO_size, SPA_FORMAT_mediaSubtype, SPA_FORMAT_mediaType, SPA_MEDIA_SUBTYPE_raw, SPA_MEDIA_TYPE_video, SPA_PARAM_EnumFormat, SPA_TYPE_OBJECT_Format, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_I420, SPA_VIDEO_FORMAT_RGB, SPA_VIDEO_FORMAT_RGBA, SPA_VIDEO_FORMAT_RGBx, SPA_VIDEO_FORMAT_YUY2, spa_format_parse, spa_format_video_raw_parse, spa_pod_frame, spa_video_info
-        }, utils::{Direction, Fraction, Id, Rectangle}
+        param::ParamType,
+        pod::{Pod, builder},
+        sys::{
+            SPA_CHOICE_Enum, SPA_CHOICE_Range, SPA_FORMAT_VIDEO_format, SPA_FORMAT_VIDEO_framerate,
+            SPA_FORMAT_VIDEO_size, SPA_FORMAT_mediaSubtype, SPA_FORMAT_mediaType,
+            SPA_MEDIA_SUBTYPE_raw, SPA_MEDIA_TYPE_video, SPA_PARAM_EnumFormat,
+            SPA_TYPE_OBJECT_Format, SPA_VIDEO_FORMAT_BGRx, SPA_VIDEO_FORMAT_I420,
+            SPA_VIDEO_FORMAT_RGB, SPA_VIDEO_FORMAT_RGBA, SPA_VIDEO_FORMAT_RGBx,
+            SPA_VIDEO_FORMAT_YUY2, spa_format_parse, spa_format_video_raw_parse, spa_pod_frame,
+            spa_video_info,
+        },
+        utils::{Direction, Fraction, Id, Rectangle},
     },
     stream::{Stream, StreamFlags},
 };
 
 struct Data {
-    format: Option<spa_video_info>
+    format: Option<spa_video_info>,
 }
 
 impl Debug for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(_format) = self.format {
             write!(f, "{:?} {:?}", _format.media_type, _format.media_subtype)
-        }
-        else {
+        } else {
             write!(f, "")
         }
     }
 }
 
-pub struct RecorderWindows {
-    
-}
+pub struct RecorderWindows {}
 
 impl RecorderWindows {
     fn new() -> Self {
-        RecorderWindows {
-
-        }
+        RecorderWindows {}
     }
 
     fn start_recording(&self) {
@@ -52,7 +56,7 @@ pub struct RawFrame {
     pub data: Vec<u8>,
     pub format: u32,
     pub width: u32,
-    pub height: u32
+    pub height: u32,
 }
 
 impl RawFrame {
@@ -67,13 +71,13 @@ impl RawFrame {
 }
 
 pub struct RecorderLinux<'a> {
-    proxy: Screencast<'a>
+    proxy: Screencast<'a>,
 }
 
 impl<'a> RecorderLinux<'a> {
     pub async fn new() -> ashpd::Result<RecorderLinux<'a>> {
         Ok(Self {
-            proxy: Screencast::new().await?
+            proxy: Screencast::new().await?,
         })
     }
 
@@ -85,14 +89,16 @@ impl<'a> RecorderLinux<'a> {
         let session = self.proxy.create_session().await?;
         println!("Session created");
 
-        self.proxy.select_sources(
-            &session,
-            CursorMode::Embedded,
-            SourceType::Monitor | SourceType::Window,
-            true,
-            None,
-            PersistMode::DoNot,
-        ).await?;
+        self.proxy
+            .select_sources(
+                &session,
+                CursorMode::Embedded,
+                SourceType::Monitor | SourceType::Window,
+                true,
+                None,
+                PersistMode::DoNot,
+            )
+            .await?;
         println!("Sources selected");
 
         let response = self.proxy.start(&session, None).await?.response()?;
@@ -102,7 +108,7 @@ impl<'a> RecorderLinux<'a> {
         // pipewire handling
         let mut buffer: Vec<u8> = Vec::with_capacity(4096);
         let mut pod_builder = builder::Builder::new(&mut buffer);
-        
+
         let mut props = Properties::new();
         props.insert("media.type", "Video");
         props.insert("media.category", "Capture");
@@ -110,17 +116,16 @@ impl<'a> RecorderLinux<'a> {
         println!("Properties created");
 
         let mainloop = MainLoop::new(None)?;
-        let mainloop_closure = mainloop.clone();
+        let _mainloop_closure = mainloop.clone();
 
         let context = Context::new(&mainloop)?;
         let core = context.connect(None)?;
         let pw_stream = Stream::new(&core, "screen_capture", props)?;
 
-        let data: Data = Data {
-            format: None
-        };
+        let data: Data = Data { format: None };
 
-        let _listener = pw_stream.add_local_listener_with_user_data(data)
+        let _listener = pw_stream
+            .add_local_listener_with_user_data(data)
             .state_changed(|_stream, _data, old, new| {
                 println!("Stream state changed: {:?} -> {:?}", old, new);
             })
@@ -129,52 +134,59 @@ impl<'a> RecorderLinux<'a> {
                     return;
                 }
                 let param = param.unwrap();
-        
-            unsafe {
-                let mut format = spa_video_info {
-                    media_type: 0,
-                    media_subtype: 0,
-                    info: std::mem::zeroed(),
-                };
-                
-                // Parse the format
-                if spa_format_parse(
-                    param.as_raw_ptr(),
-                    &mut format.media_type as *mut _,
-                    &mut format.media_subtype as *mut _,
-                ) < 0 {
-                    return;
+
+                unsafe {
+                    let mut format = spa_video_info {
+                        media_type: 0,
+                        media_subtype: 0,
+                        info: std::mem::zeroed(),
+                    };
+
+                    // Parse the format
+                    if spa_format_parse(
+                        param.as_raw_ptr(),
+                        &mut format.media_type as *mut _,
+                        &mut format.media_subtype as *mut _,
+                    ) < 0
+                    {
+                        return;
+                    }
+
+                    // Check if it's video/raw
+                    if format.media_type != SPA_MEDIA_TYPE_video
+                        || format.media_subtype != SPA_MEDIA_SUBTYPE_raw
+                    {
+                        return;
+                    }
+
+                    // Parse video format details
+                    if spa_format_video_raw_parse(
+                        param.as_raw_ptr(),
+                        &mut format.info.raw as *mut _,
+                    ) < 0
+                    {
+                        return;
+                    }
+
+                    // Store format in data
+                    data.format = Some(format);
+
+                    // Print format info
+                    println!("got video format:");
+                    println!(
+                        "  format: {} ({})",
+                        format.info.raw.format,
+                        format.info.raw.format // You'd need spa_debug_type_find_name for the string
+                    );
+                    println!(
+                        "  size: {}x{}",
+                        format.info.raw.size.width, format.info.raw.size.height
+                    );
+                    println!(
+                        "  framerate: {}/{}",
+                        format.info.raw.framerate.num, format.info.raw.framerate.denom
+                    );
                 }
-                
-                // Check if it's video/raw
-                if format.media_type != SPA_MEDIA_TYPE_video ||
-                format.media_subtype != SPA_MEDIA_SUBTYPE_raw {
-                    return;
-                }
-                
-                // Parse video format details
-                if spa_format_video_raw_parse(param.as_raw_ptr(), &mut format.info.raw as *mut _) < 0 {
-                    return;
-                }
-                
-                // Store format in data
-                data.format = Some(format);
-                
-                // Print format info
-                println!("got video format:");
-                println!("  format: {} ({})", 
-                    format.info.raw.format,
-                    format.info.raw.format // You'd need spa_debug_type_find_name for the string
-                );
-                println!("  size: {}x{}", 
-                    format.info.raw.size.width,
-                    format.info.raw.size.height
-                );
-                println!("  framerate: {}/{}",
-                    format.info.raw.framerate.num,
-                    format.info.raw.framerate.denom
-                );
-            }
             })
             .process(move |stream, data_format| {
                 // println!("{:?}", stream.properties());
@@ -182,44 +194,48 @@ impl<'a> RecorderLinux<'a> {
                     // Process buffer data
                     // println!("Processing buffer frame");
                     let datas = buffer.datas_mut();
-                    if let Some(data) = datas.first_mut() {
-                        if let Some(internal_data) = data.data() {
-                            let expected = 2560 * 1440 * 4;
-                            println!("Frame size: {} (expected: {})", internal_data.len(), expected);
+                    if let Some(data) = datas.first_mut()
+                        && let Some(internal_data) = data.data()
+                    {
+                        let expected = 2560 * 1440 * 4;
+                        println!(
+                            "Frame size: {} (expected: {})",
+                            internal_data.len(),
+                            expected
+                        );
 
-                            if let Some(format) = data_format.format {
-                                unsafe {
-                                    let raw_frame = RawFrame::new(
-                                        internal_data.to_vec(),
-                                        format.info.raw.format,
-                                        format.info.raw.size.width,
-                                        format.info.raw.size.height,
-                                    );
-                                    let _ = sender.try_send(raw_frame);
-                                }
+                        if let Some(format) = data_format.format {
+                            unsafe {
+                                let raw_frame = RawFrame::new(
+                                    internal_data.to_vec(),
+                                    format.info.raw.format,
+                                    format.info.raw.size.width,
+                                    format.info.raw.size.height,
+                                );
+                                let _ = sender.try_send(raw_frame);
                             }
                         }
-                        // println!("Got frame data: {:?}", data.data());
                     }
+                    // println!("Got frame data: {:?}", data.data());
                 }
             })
             .register()?;
-        
+
         println!("Building POD...");
         let mut frame: MaybeUninit<spa_pod_frame> = MaybeUninit::uninit();
         let mut choice_frame: MaybeUninit<spa_pod_frame> = MaybeUninit::uninit();
         unsafe {
             // Push object
             pod_builder.push_object(&mut frame, SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat)?;
-            
+
             // Media type
             pod_builder.add_prop(SPA_FORMAT_mediaType, 0)?;
             pod_builder.add_id(Id(SPA_MEDIA_TYPE_video))?;
-            
+
             // Media subtype
             pod_builder.add_prop(SPA_FORMAT_mediaSubtype, 0)?;
             pod_builder.add_id(Id(SPA_MEDIA_SUBTYPE_raw))?;
-            
+
             // Video format (with choice enum)
             pod_builder.add_prop(SPA_FORMAT_VIDEO_format, 0)?;
             pod_builder.push_choice(&mut choice_frame, SPA_CHOICE_Enum, 0)?;
@@ -228,25 +244,37 @@ impl<'a> RecorderLinux<'a> {
             pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGBx))?;
             pod_builder.add_id(Id(SPA_VIDEO_FORMAT_BGRx))?; // default, native wayland
             pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGBA))?;
-            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGB))?; 
+            pod_builder.add_id(Id(SPA_VIDEO_FORMAT_RGB))?;
             pod_builder.pop(choice_frame.assume_init_mut());
-            
+
             // Video size (with choice range)
             pod_builder.add_prop(SPA_FORMAT_VIDEO_size, 0)?;
             pod_builder.push_choice(&mut choice_frame, SPA_CHOICE_Range, 0)?;
-            pod_builder.add_rectangle(Rectangle { width: 320, height: 240 })?; // default
-            pod_builder.add_rectangle(Rectangle { width: 1, height: 1 })?; // min
-            pod_builder.add_rectangle(Rectangle { width: 4096, height: 4096 })?; // max
+            pod_builder.add_rectangle(Rectangle {
+                width: 320,
+                height: 240,
+            })?; // default
+            pod_builder.add_rectangle(Rectangle {
+                width: 1,
+                height: 1,
+            })?; // min
+            pod_builder.add_rectangle(Rectangle {
+                width: 4096,
+                height: 4096,
+            })?; // max
             pod_builder.pop(choice_frame.assume_init_mut());
-            
+
             // Video framerate (with choice range)
             pod_builder.add_prop(SPA_FORMAT_VIDEO_framerate, 0)?;
             pod_builder.push_choice(&mut choice_frame, SPA_CHOICE_Range, 0)?;
             pod_builder.add_fraction(Fraction { num: 30, denom: 1 })?; // default
             pod_builder.add_fraction(Fraction { num: 0, denom: 1 })?; // min
-            pod_builder.add_fraction(Fraction { num: 1000, denom: 1 })?; // max
+            pod_builder.add_fraction(Fraction {
+                num: 1000,
+                denom: 1,
+            })?; // max
             pod_builder.pop(choice_frame.assume_init_mut());
-            
+
             // Pop object
             pod_builder.pop(frame.assume_init_mut());
         }
@@ -257,10 +285,11 @@ impl<'a> RecorderLinux<'a> {
 
         pw_stream.connect(
             Direction::Input,
-            Some(stream.pipe_wire_node_id()), 
-            StreamFlags::AUTOCONNECT | StreamFlags::MAP_BUFFERS, 
-            &mut params)?;   
-        
+            Some(stream.pipe_wire_node_id()),
+            StreamFlags::AUTOCONNECT | StreamFlags::MAP_BUFFERS,
+            &mut params,
+        )?;
+
         println!("Stream connected, running mainloop...");
         mainloop.run();
 

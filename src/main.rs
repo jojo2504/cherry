@@ -1,19 +1,26 @@
-pub mod recorder;
+pub mod app;
 pub mod media;
 pub mod menu;
 pub mod network;
+pub mod recorder;
 pub mod service;
-pub mod app;
 
+use crate::{
+    app::App,
+    media::VideoEncoder,
+    recorder::RawFrame,
+    service::{Client, Server},
+};
 use anyhow::Ok;
-use tokio::sync::mpsc::{self, Receiver, Sender};
 use std::{sync::Arc, time::Duration};
-use crate::{app::App, media::VideoEncoder, recorder::RawFrame, service::{Client, Server}};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let (stream_sender, stream_receiver): (Sender<RawFrame>, Receiver<RawFrame>) = mpsc::channel::<RawFrame>(100);
-    let (encoder_sender, encoder_receiver): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel::<Vec<u8>>(100);
+    let (stream_sender, stream_receiver): (Sender<RawFrame>, Receiver<RawFrame>) =
+        mpsc::channel::<RawFrame>(100);
+    let (encoder_sender, encoder_receiver): (Sender<Vec<u8>>, Receiver<Vec<u8>>) =
+        mpsc::channel::<Vec<u8>>(100);
     let app = Arc::new(App::new(stream_sender, encoder_receiver).await?);
 
     tokio::spawn({
@@ -23,7 +30,9 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::spawn(async move {
         let mut video_encoder = VideoEncoder::new(2560, 1440, 8).await.unwrap();
-        video_encoder.encode_stream(stream_receiver, encoder_sender).await
+        video_encoder
+            .encode_stream(stream_receiver, encoder_sender)
+            .await
     });
 
     std::thread::sleep(Duration::from_secs(2));

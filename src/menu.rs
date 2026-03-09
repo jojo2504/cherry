@@ -1,10 +1,9 @@
+use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, ComboBoxText, Label, 
-    Orientation, ScrolledWindow, Switch, Scale, 
-    Grid, SpinButton, Adjustment,
+    Adjustment, Application, ApplicationWindow, Box as GtkBox, Button, ComboBoxText, Grid, Label,
+    Orientation, Scale, ScrolledWindow, SpinButton, Switch,
 };
-use gtk4::glib;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -65,12 +64,10 @@ impl Default for AppState {
 pub async fn main() -> glib::ExitCode {
     gtk4::init().unwrap();
 
-    let app = Application::builder()
-        .application_id(APP_ID)
-        .build();
+    let app = Application::builder().application_id(APP_ID).build();
 
     app.connect_activate(build_ui);
-    
+
     // Apply custom CSS for VS Code dark theme aesthetic
     let provider = gtk4::CssProvider::new();
     provider.load_from_data(
@@ -78,19 +75,19 @@ pub async fn main() -> glib::ExitCode {
         window {
             background-color: #1e1e1e;
         }
-        
+
         .titlebar {
             background: #252525;
             border-bottom: 1px solid #3c3c3c;
             min-height: 48px;
         }
-        
+
         .titlebar-label {
             color: #cccccc;
             font-size: 13px;
             font-weight: 400;
         }
-        
+
         .status-indicator {
             background-color: #007acc;
             color: #ffffff;
@@ -99,29 +96,29 @@ pub async fn main() -> glib::ExitCode {
             font-size: 11px;
             font-weight: 500;
         }
-        
+
         .status-indicator.streaming {
             background-color: #f48771;
         }
-        
+
         .status-indicator.idle {
             background-color: #3c3c3c;
         }
-        
+
         .section-card {
             background-color: #252525;
             border: 1px solid #3c3c3c;
             border-radius: 6px;
             padding: 16px;
         }
-        
+
         .section-header {
             color: #cccccc;
             font-size: 13px;
             font-weight: 600;
             margin-bottom: 12px;
         }
-        
+
         .section-subheader {
             color: #858585;
             font-size: 11px;
@@ -130,7 +127,7 @@ pub async fn main() -> glib::ExitCode {
             letter-spacing: 0.5px;
             margin-bottom: 8px;
         }
-        
+
         button.primary {
             background-color: #0e639c;
             color: #ffffff;
@@ -141,20 +138,20 @@ pub async fn main() -> glib::ExitCode {
             font-weight: 500;
             min-height: 28px;
         }
-        
+
         button.primary:hover {
             background-color: #1177bb;
         }
-        
+
         button.primary.destructive {
             background-color: #a1260d;
             border-color: #f48771;
         }
-        
+
         button.primary.destructive:hover {
             background-color: #c72e0d;
         }
-        
+
         button.secondary {
             background-color: #2d2d2d;
             color: #cccccc;
@@ -165,11 +162,11 @@ pub async fn main() -> glib::ExitCode {
             font-weight: 400;
             min-height: 26px;
         }
-        
+
         button.secondary:hover {
             background-color: #3c3c3c;
         }
-        
+
         button.icon-button {
             background-color: transparent;
             color: #cccccc;
@@ -179,11 +176,11 @@ pub async fn main() -> glib::ExitCode {
             min-width: 28px;
             min-height: 28px;
         }
-        
+
         button.icon-button:hover {
             background-color: #2d2d2d;
         }
-        
+
         .peer-row {
             background-color: #2d2d2d;
             border: 1px solid #3c3c3c;
@@ -191,40 +188,40 @@ pub async fn main() -> glib::ExitCode {
             padding: 12px;
             margin-bottom: 6px;
         }
-        
+
         .peer-row:hover {
             background-color: #333333;
             border-color: #4c4c4c;
         }
-        
+
         .peer-name {
             color: #cccccc;
             font-size: 13px;
             font-weight: 500;
         }
-        
+
         .peer-status {
             color: #858585;
             font-size: 11px;
         }
-        
+
         .status-dot {
             font-size: 10px;
             margin-right: 4px;
         }
-        
+
         .status-online {
             color: #89d185;
         }
-        
+
         .status-offline {
             color: #6e6e6e;
         }
-        
+
         .status-connected {
             color: #4fc1ff;
         }
-        
+
         combobox, entry, spinbutton {
             background-color: #3c3c3c;
             color: #cccccc;
@@ -233,22 +230,22 @@ pub async fn main() -> glib::ExitCode {
             padding: 6px 8px;
             font-size: 13px;
         }
-        
+
         combobox:focus, entry:focus, spinbutton:focus {
             border-color: #007acc;
         }
-        
+
         scale trough {
             background-color: #3c3c3c;
             border-radius: 2px;
             min-height: 4px;
         }
-        
+
         scale highlight {
             background-color: #007acc;
             border-radius: 2px;
         }
-        
+
         scale slider {
             background-color: #cccccc;
             border: none;
@@ -257,63 +254,63 @@ pub async fn main() -> glib::ExitCode {
             min-height: 14px;
             margin: -5px;
         }
-        
+
         switch {
             background-color: #3c3c3c;
             border: 1px solid #3c3c3c;
         }
-        
+
         switch:checked {
             background-color: #007acc;
         }
-        
+
         switch slider {
             background-color: #cccccc;
             border-radius: 8px;
         }
-        
+
         .empty-state {
             color: #6e6e6e;
             font-size: 12px;
             padding: 40px 20px;
         }
-        
+
         .info-label {
             color: #cccccc;
             font-size: 12px;
         }
-        
+
         .dim-label {
             color: #858585;
             font-size: 11px;
         }
-        
+
         scrolledwindow {
             background-color: transparent;
         }
-        
+
         list {
             background-color: transparent;
             border: none;
         }
-        
+
         row {
             background-color: transparent;
         }
-        
+
         separator {
             background-color: #3c3c3c;
             min-height: 1px;
         }
-        "#
+        "#,
     );
-    
+
     gtk4::style_context_add_provider_for_display(
         &gtk4::gdk::Display::default().expect("Could not connect to display"),
         &provider,
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
-    
+
     app.run()
 }
 
@@ -377,13 +374,13 @@ fn create_titlebar(state: Rc<RefCell<AppState>>) -> GtkBox {
         StreamStatus::Streaming => "Streaming",
         StreamStatus::Viewing => "Viewing",
     };
-    
+
     let status = Label::new(Some(status_text));
     status.add_css_class("status-indicator");
     match state.borrow().stream_status {
         StreamStatus::Idle => status.add_css_class("idle"),
         StreamStatus::Streaming => status.add_css_class("streaming"),
-        _ => {},
+        _ => {}
     }
     titlebar.append(&status);
 
@@ -444,14 +441,14 @@ fn create_stream_section(state: Rc<RefCell<AppState>>) -> GtkBox {
     screen_combo.append_text("Secondary Monitor");
     screen_combo.append_text("Select Window...");
     screen_combo.set_active(Some(0));
-    
+
     let state_clone = state.clone();
     screen_combo.connect_changed(move |combo| {
         if let Some(text) = combo.active_text() {
             state_clone.borrow_mut().selected_screen = Some(text.to_string());
         }
     });
-    
+
     section.append(&screen_combo);
 
     // Start/Stop button
@@ -461,7 +458,7 @@ fn create_stream_section(state: Rc<RefCell<AppState>>) -> GtkBox {
     let stream_button = Button::with_label("Start Streaming");
     stream_button.add_css_class("primary");
     stream_button.set_hexpand(true);
-    
+
     let state_clone = state.clone();
     stream_button.connect_clicked(move |button| {
         let mut state = state_clone.borrow_mut();
@@ -478,7 +475,7 @@ fn create_stream_section(state: Rc<RefCell<AppState>>) -> GtkBox {
             }
         }
     });
-    
+
     button_box.append(&stream_button);
     section.append(&button_box);
 
@@ -496,21 +493,21 @@ fn create_audio_section(state: Rc<RefCell<AppState>>) -> GtkBox {
 
     // Mute toggle
     let mute_box = GtkBox::new(Orientation::Horizontal, 12);
-    
+
     let mute_label = Label::new(Some("Mute Audio"));
     mute_label.set_halign(gtk4::Align::Start);
     mute_label.set_hexpand(true);
     mute_label.add_css_class("info-label");
-    
+
     let mute_switch = Switch::new();
     mute_switch.set_active(false);
-    
+
     let state_clone = state.clone();
     mute_switch.connect_state_set(move |_, enabled| {
         state_clone.borrow_mut().muted = enabled;
         glib::Propagation::Proceed
     });
-    
+
     mute_box.append(&mute_label);
     mute_box.append(&mute_switch);
     section.append(&mute_box);
@@ -526,12 +523,12 @@ fn create_audio_section(state: Rc<RefCell<AppState>>) -> GtkBox {
     volume_scale.set_value(state.borrow().volume);
     volume_scale.set_draw_value(true);
     volume_scale.set_value_pos(gtk4::PositionType::Right);
-    
+
     let state_clone = state.clone();
     volume_scale.connect_value_changed(move |scale| {
         state_clone.borrow_mut().volume = scale.value();
     });
-    
+
     section.append(&volume_scale);
 
     section
@@ -554,20 +551,20 @@ fn create_settings_section(state: Rc<RefCell<AppState>>) -> GtkBox {
     let quality_label = Label::new(Some("Quality Preset"));
     quality_label.set_halign(gtk4::Align::Start);
     quality_label.add_css_class("section-subheader");
-    
+
     let quality_combo = ComboBoxText::new();
     quality_combo.append_text("High");
     quality_combo.append_text("Medium");
     quality_combo.append_text("Low");
     quality_combo.set_active(Some(0));
-    
+
     let state_clone = state.clone();
     quality_combo.connect_changed(move |combo| {
         if let Some(text) = combo.active_text() {
             state_clone.borrow_mut().quality = text.to_string();
         }
     });
-    
+
     grid.attach(&quality_label, 0, 0, 1, 1);
     grid.attach(&quality_combo, 0, 1, 1, 1);
 
@@ -575,39 +572,39 @@ fn create_settings_section(state: Rc<RefCell<AppState>>) -> GtkBox {
     let fps_label = Label::new(Some("Framerate (FPS)"));
     fps_label.set_halign(gtk4::Align::Start);
     fps_label.add_css_class("section-subheader");
-    
+
     let fps_adjustment = Adjustment::new(30.0, 15.0, 60.0, 5.0, 15.0, 0.0);
     let fps_spin = SpinButton::new(Some(&fps_adjustment), 1.0, 0);
-    
+
     let state_clone = state.clone();
     fps_spin.connect_value_changed(move |spin| {
         state_clone.borrow_mut().fps = spin.value();
     });
-    
+
     grid.attach(&fps_label, 1, 0, 1, 1);
     grid.attach(&fps_spin, 1, 1, 1, 1);
 
     // Hardware acceleration
     let hw_box = GtkBox::new(Orientation::Horizontal, 12);
     hw_box.set_margin_top(8);
-    
+
     let hw_label = Label::new(Some("Hardware Acceleration"));
     hw_label.set_halign(gtk4::Align::Start);
     hw_label.set_hexpand(true);
     hw_label.add_css_class("info-label");
-    
+
     let hw_switch = Switch::new();
     hw_switch.set_active(state.borrow().hw_accel);
-    
+
     let state_clone = state.clone();
     hw_switch.connect_state_set(move |_, enabled| {
         state_clone.borrow_mut().hw_accel = enabled;
         glib::Propagation::Proceed
     });
-    
+
     hw_box.append(&hw_label);
     hw_box.append(&hw_switch);
-    
+
     grid.attach(&hw_box, 0, 2, 2, 1);
 
     section.append(&grid);
@@ -621,47 +618,49 @@ fn create_peers_section(state: Rc<RefCell<AppState>>) -> GtkBox {
 
     // Header with refresh button
     let header_box = GtkBox::new(Orientation::Horizontal, 12);
-    
+
     let header = Label::new(Some("Discovered Peers"));
     header.set_halign(gtk4::Align::Start);
     header.set_hexpand(true);
     header.add_css_class("section-header");
-    
+
     let refresh_button = Button::with_label("⟳");
     refresh_button.add_css_class("icon-button");
     refresh_button.set_tooltip_text(Some("Refresh peers"));
-    
+
     refresh_button.connect_clicked(move |_| {
         println!("Refreshing peers...");
     });
-    
+
     header_box.append(&header);
     header_box.append(&refresh_button);
     section.append(&header_box);
 
     // Peer list
     let peers = state.borrow().peers.clone();
-    
+
     if peers.is_empty() {
-        let empty = Label::new(Some("No peers discovered\n\nMake sure you're connected to the same network"));
+        let empty = Label::new(Some(
+            "No peers discovered\n\nMake sure you're connected to the same network",
+        ));
         empty.add_css_class("empty-state");
         empty.set_justify(gtk4::Justification::Center);
         section.append(&empty);
     } else {
         let peer_list = GtkBox::new(Orientation::Vertical, 6);
-        
+
         for peer in peers {
             let peer_item = create_peer_item(peer, state.clone());
             peer_list.append(&peer_item);
         }
-        
+
         let scrolled = ScrolledWindow::builder()
             .hscrollbar_policy(gtk4::PolicyType::Never)
             .vscrollbar_policy(gtk4::PolicyType::Automatic)
             .min_content_height(200)
             .child(&peer_list)
             .build();
-        
+
         section.append(&scrolled);
     }
 
@@ -675,13 +674,13 @@ fn create_peer_item(peer: Peer, _state: Rc<RefCell<AppState>>) -> GtkBox {
     // Info section
     let info_box = GtkBox::new(Orientation::Vertical, 4);
     info_box.set_hexpand(true);
-    
+
     let name = Label::new(Some(&peer.name));
     name.set_halign(gtk4::Align::Start);
     name.add_css_class("peer-name");
-    
+
     let status_box = GtkBox::new(Orientation::Horizontal, 4);
-    
+
     let status_dot = Label::new(Some("●"));
     match peer.status {
         PeerStatus::Online => status_dot.add_css_class("status-online"),
@@ -689,7 +688,7 @@ fn create_peer_item(peer: Peer, _state: Rc<RefCell<AppState>>) -> GtkBox {
         PeerStatus::Connected => status_dot.add_css_class("status-connected"),
     }
     status_dot.add_css_class("status-dot");
-    
+
     let status_text = match peer.status {
         PeerStatus::Online => {
             if let Some(latency) = peer.latency {
@@ -697,16 +696,16 @@ fn create_peer_item(peer: Peer, _state: Rc<RefCell<AppState>>) -> GtkBox {
             } else {
                 "Online".to_string()
             }
-        },
+        }
         PeerStatus::Offline => "Offline".to_string(),
         PeerStatus::Connected => "Connected".to_string(),
     };
     let status_label = Label::new(Some(&status_text));
     status_label.add_css_class("peer-status");
-    
+
     status_box.append(&status_dot);
     status_box.append(&status_label);
-    
+
     info_box.append(&name);
     info_box.append(&status_box);
 
@@ -714,7 +713,7 @@ fn create_peer_item(peer: Peer, _state: Rc<RefCell<AppState>>) -> GtkBox {
     let connect_button = Button::with_label("Connect");
     connect_button.add_css_class("secondary");
     connect_button.set_sensitive(peer.status != PeerStatus::Offline);
-    
+
     let peer_id = peer.id.clone();
     connect_button.connect_clicked(move |button| {
         println!("Connecting to peer: {}", peer_id);
