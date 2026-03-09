@@ -23,13 +23,17 @@ unsafe impl Send for VideoEncoder {}
 
 pub fn parse_format(format: u32) -> format::Pixel {
     use format::Pixel;
+    // SPA format IDs -> ffmpeg pixel formats.
+    // On little-endian x86, AV_PIX_FMT_BGR32 = AV_PIX_FMT_RGBA (wrong byte order!).
+    // BGRx bytes in memory are [B, G, R, x] which is AV_PIX_FMT_BGR0.
+    // RGBx bytes in memory are [R, G, B, x] which is AV_PIX_FMT_RGB0.
     match format {
-        2 => Pixel::YUV420P, // I420
-        4 => Pixel::YUYV422, // YUY2
-        7 => Pixel::RGB32,   // RGBx
-        8 => Pixel::BGR32,   // BGRx (Wayland native)
-        11 => Pixel::RGBA,   // RGBA
-        15 => Pixel::RGB24,  // RGB
+        2 => Pixel::YUV420P, // SPA_VIDEO_FORMAT_I420
+        4 => Pixel::YUYV422, // SPA_VIDEO_FORMAT_YUY2
+        7 => Pixel::RGBZ,    // SPA_VIDEO_FORMAT_RGBx  [R, G, B, x] = AV_PIX_FMT_RGB0
+        8 => Pixel::BGRZ, // SPA_VIDEO_FORMAT_BGRx  [B, G, R, x] = AV_PIX_FMT_BGR0 (Wayland native)
+        11 => Pixel::RGBA, // SPA_VIDEO_FORMAT_RGBA
+        15 => Pixel::RGB24, // SPA_VIDEO_FORMAT_RGB
         _ => unreachable!(),
     }
 }
@@ -120,7 +124,23 @@ impl VideoEncoder {
             let mut dst = frame::Video::new(format::Pixel::YUV420P, raw.width, raw.height);
             eprintln!("[enc] dst frame created");
 
-            self.scaler.run(&src, &mut dst)?;
+            if let Err(e) = self.scaler.run(&src, &mut dst) {
+                eprintln!("[enc] scaler failed: {:?} (code {})", e, i32::from(e));
+                eprintln!(
+                    "[enc] src: fmt={:?} {}x{} stride={} planes={}",
+                    parse_format(raw.format),
+                    raw.width,
+                    raw.height,
+                    src.stride(0),
+                    src.planes(),
+                );
+                eprintln!(
+                    "[enc] raw.data.len()={} expected stride*h={}",
+                    raw.data.len(),
+                    src.stride(0) * raw.height as usize,
+                );
+                continue;
+            }
             eprintln!("[enc] scaler done");
 
             self.encoder.send_frame(&dst)?;

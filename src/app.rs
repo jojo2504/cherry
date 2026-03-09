@@ -116,6 +116,6 @@ impl Server for App {
     }
 
     async fn start_streaming(&self) -> anyhow::Result<()> {
-        todo!()
+        Ok(())
     }
 }
